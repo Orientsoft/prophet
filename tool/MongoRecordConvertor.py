@@ -30,9 +30,10 @@ class MongoRecordConvertor(object):
             self.read_queue.put(record)
 
     def convert_process(self):
-        for i in self.record_count:
+        for i in range(self.record_count):
             record = self.read_queue.get()
             result = self.handler(record)
+            
             self.write_queue.put(result)
 
     def write_process(self):
@@ -46,9 +47,8 @@ class MongoRecordConvertor(object):
         bulk = collection.initialize_unordered_bulk_op()
 
         for i in range(self.record_count):
-            record = self.read_queue.get()
-
-            bulk.find({'_id': record['_id']}).replaceOne(record)
+            record = self.write_queue.get()
+            bulk.find({'_id': record['_id']}).replace_one(record)
             record_count += 1
 
             progress_bar.update(1)
