@@ -37,13 +37,16 @@ if __name__ == "__init__":
     test_iteration = 5
     snapshot_interval = 500
     snapshot_sub_path = "snapshot/"
-    snapshot_prefix = "pytorch_lstm"
+    snapshot_prefix = "pt_lstm"
     snapshot = ""
     display_interval = 10
 
     # setup
     display = Display(display_interval)
+    
     loader = SampleLoader(batch_size, window_size)
+    loader.start_load_train()
+    loader.start_load_test()
 
     net = SequenceLSTM(input_feature_count, 128, 2, 1)
     last_train_iter = 0
@@ -134,5 +137,7 @@ if __name__ == "__init__":
             snapshot_weight_file = "{0}{1}_{2}_{3}.{4}".format(snapshot_path, snapshot_prefix, "iter", train_iter, "weight")
             torch.save(net.state_dict(), snapshot_weight_file)
 
-        # TODO : print and plot loss
+        # print status
         display.update(train_iter, loss.data.numpy()[0])
+
+        # TODO : plot loss
