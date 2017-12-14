@@ -2,26 +2,22 @@
 
 import numpy as np
 
-def percentage_normalization(self, data, label):
-    normalized_data = np.zeros_like(data)
-    normalized_label = np.zeros_like(label)
+def percentage_normalization(data):
+    normalized_data = []
 
     p0 = data[0]
-    normalized_data[0] = 0.
+    normalized_data.append(0.)
 
     for i in range(1, len(data)):
         pi = data[i]
         ni = (pi / p0) - 1.
-        normalized_data[i] = ni
+        normalized_data.append(ni)
+    
+    normalized_data = np.array(normalized_data)
+    
+    return normalized_data
 
-    for i in range(len(label)):
-        pi = label[i]
-        ni = (pi / p0) - 1.
-        normalized_label[i] = ni
-
-    return normalized_data, normalized_label
-
-def percentage_denormalization(self, p0, data):
+def percentage_denormalization(p0, data):
     raw = np.zeros_like(data)
 
     for i in range(len(data)):

@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 
 import sys
-sys.path.append("../tool")
+sys.path.append("../utility")
 from Display import Display
 
 import torch
@@ -16,39 +16,46 @@ from SampleLoader import SampleLoader
 from SequenceLSTM import SequenceLSTM
 
 def check_test(train_iter, test_interval):
-    if train_iter % test_interval == 0:
+    if (train_iter != 0) and (train_iter % test_interval == 0):
         return True
     else:
         return False
 
 def check_snapshot(train_iter, snapshot_interval):
-    if train_iter % snapshot_interval == 0:
+    if (train_iter != 0) and (train_iter % snapshot_interval == 0):
         return True
     else:
         return False
 
-if __name__ == "__init__":
+if __name__ == "__main__":
     # parameter
-    train_iteration_count = 100000
-    input_feature_count = 19
+    train_iteration_count = 100000000
+
+    input_feature_count = 6
+    output_feature_count = 4
     batch_size = 4
-    window_size = 12
+    window_size = 30
+
     test_interval = 500
     test_iteration = 5
+
     snapshot_interval = 500
     snapshot_sub_path = "snapshot/"
     snapshot_prefix = "pt_lstm"
     snapshot = ""
+    
     display_interval = 10
 
     # setup
     display = Display(display_interval)
-    
-    loader = SampleLoader(batch_size, window_size)
+
+    loader = SampleLoader(db_name="tploader", collection_prefix="tploader-1m", test_index_offset=39600, batch_size=batch_size, data_length=window_size)
     loader.start_load_train()
     loader.start_load_test()
 
-    net = SequenceLSTM(input_feature_count, 128, 2, 1)
+    net = SequenceLSTM(input_feature_count, 128, 2, output_feature_count, batch_size, window_size)
+    print(net)
+
     last_train_iter = 0
     # load snapshot if needed
     if snapshot != "":
@@ -63,7 +70,7 @@ if __name__ == "__init__":
         net = net.cuda()
 
     criterion = nn.MSELoss()
-    optimizer = optim.SGD(net.paramteters(), lr=0.001, momentum=0.9)
+    optimizer = optim.SGD(net.parameters(), lr=0.0000001, momentum=0.9)
 
     train_loss = np.zeros(train_iteration_count - last_train_iter)
     test_loss = np.zeros(train_iteration_count - last_train_iter)
@@ -75,16 +82,20 @@ if __name__ == "__init__":
         train_iter_offset = train_iter - last_train_iter
 
         data, label = loader.load_train_sample()
+        data, label = np.array(data), np.array(label)
         if gpu_flag:
-            data, label = Variable(data.cuda()), Variable(label.cuda())
+            data, label = torch.cuda.FloatTensor(data), torch.cuda.FloatTensor(label)
+            # print(data)
         else:
-            data, label = Variable(data), Variable(label)
-
+            data, label = torch.from_numpy(data), torch.from_numpy(label)
+        data, label = Variable(data, requires_grad=True), Variable(label)
+        
         net.train(True)
         optimizer.zero_grad()
 
         # forward
         result = net(data)
+        label = np.squeeze(label)
         loss = criterion(result, label)
 
         # backward
@@ -92,7 +103,10 @@ if __name__ == "__init__":
         optimizer.step()
 
         # update train loss
+        loss = loss.cpu()
         train_loss[train_iter_offset] = loss.data.numpy()[0]
+        if loss.data.numpy()[0] > 100.:
+            print("loss: {0}\nresult: {1}\nlabel: {2}".format(loss, result, label))
 
         # test if needed
         if check_test(train_iter, test_interval):
@@ -101,10 +115,13 @@ if __name__ == "__init__":
             for test_iter in range(test_iteration):
                 # init
                 data, label = loader.load_test_sample()
+                data, label = np.array(data), np.array(label)
                 if gpu_flag:
-                    data, label = Variable(data.cuda()), Variable(label.cuda())
+                    data, label = torch.cuda.FloatTensor(data), torch.cuda.FloatTensor(label)
+                    # print(data)
                 else:
-                    data, label = Variable(data), Variable(label)
+                    data, label = torch.from_numpy(data), torch.from_numpy(label)
+                data, label = Variable(data, requires_grad=True), Variable(label)
 
                 net.train(False)
                 optimizer.zero_grad()
@@ -114,6 +131,7 @@ if __name__ == "__init__":
                 loss = criterion(result, label)
 
                 # update loss
+                loss = loss.cpu()
                 avg_loss += loss.data.numpy()[0]
 
             avg_loss /= test_iteration

@@ -16,13 +16,13 @@ def handler(record_count, read_queue, write_queue):
     errCount = 0
     maxProcessingTime = 0
     avgProcessingTime = 0.
-    ts = time.localtime(0.)
+    lastTs = time.time()
 
     for i in range(record_count):
         record = read_queue.get()
 
         if record is None:
-            result = {"i": index, "ts": ts, "min": currMin, "cnt": transCount, "maxTm": maxProcessingTime, "avgTm": avgProcessingTime, "err": errCount}
+            result = {"i": index, "ts": lastTs, "min": currMin, "cnt": transCount, "maxTm": maxProcessingTime, "avgTm": avgProcessingTime, "err": errCount}
             write_queue.put(result)
 
             write_queue.put(None)
@@ -37,7 +37,7 @@ def handler(record_count, read_queue, write_queue):
             if (minute != currMin) and (currMin != 0):
                 avgProcessingTime /= transCount
 
-                result = {"i": index, "ts": ts, "min": currMin, "cnt": transCount, "maxTm": maxProcessingTime, "avgTm": avgProcessingTime, "err": errCount}
+                result = {"i": index, "ts": lastTs, "min": currMin, "cnt": transCount, "maxTm": maxProcessingTime, "avgTm": avgProcessingTime, "err": errCount}
                 write_queue.put(result)
 
                 transCount = 1
@@ -48,9 +48,11 @@ def handler(record_count, read_queue, write_queue):
                 else:
                     errCount = 0
 
+                lastTs = ts
                 currMin = minute
                 index += 1
             else:
+                lastTs = ts
                 currMin = minute
 
                 transCount += 1
